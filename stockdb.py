@@ -8,17 +8,17 @@ import sqlite3
 import csv
 import glob
 from datetime import datetime, timedelta
-from fish import ProgressFish, Bird, Fish, SwimFishNoSync
 from analytics import get_name_sector
+import ConfigParser, io
+DATEFORMAT = "%Y%m%d"
+TIMEFORMAT = "%Y%m%d%H%M%S"
 
 
 def get_num_lines():
     total_linenum = 0
-    bird = Fish()
     for histfile in glob.glob("**/*.TXT"):
         with open(histfile) as f:
             for l in f:
-                #bird.animate()
                 total_linenum+= 1
     return total_linenum
 
@@ -26,10 +26,22 @@ def builddb(conn):
     print("Calculating data size")
     numlines = get_num_lines()
     print("Number of etries: %s"%numlines)
-    fish = ProgressFish(total=numlines)
     cur = conn.cursor()
     cur.execute("""CREATE TABLE IF NOT EXISTS stocks (sym text, date text, open real, close real, 
                     high real, low real, volume real, UNIQUE(sym,date) ON CONFLICT REPLACE)""")
+    cur.execute("""CREATE TABLE IF NOT EXISTS indices (sym text, name text,
+                     UNIQUE(sym) ON CONFLICT REPLACE)""")
+    cur.execute("""CREATE TABLE IF NOT EXISTS analytics (sym text, name text, sector text, week52high real,
+                    week52low real, last_price real, UNIQUE(sym) ON CONFLICT REPLACE)""")
+    ptotal = 0
+    symbol_map = 'ASXListedCompanies.csv'
+    with open(symbol_map, 'r') as f:
+        reader = csv.reader(f)
+        for i, row in enumerate(reader):
+            if i==1:continue
+            cur.execute(""" INSERT INTO analytics VALUES('%s','%s','%s', %s,%s,%s)""" \
+                % (row[1],row[0].replace("'","''"),row[2],0, 0,int(datetime.now().strftime(DATEFORMAT))))
+
     ptotal = 0
     for histfile in glob.glob("**/*.TXT"):
         with open(histfile, 'r') as f:
@@ -38,9 +50,13 @@ def builddb(conn):
                 #print( row)
                 #if i/1000:sys.stdout.write("\r%s of %s entries"%(numlines-i,  numlines))
                 ptotal+=1
-                #fish.animate(amount=ptotal)
                 cur.execute(""" INSERT INTO stocks VALUES('%s',%s,%s, %s,%s,%s,%s)""" % (row[0],row[1],row[2],row[3],
                                 row[4], row[5],row[6]))
+    indices_file = 'ASXIndices.csv'
+    with open(indices_file, 'r') as f:
+        reader = csv.reader(f)
+        for row in reader:
+            cur.execute("""INSERT INTO indices VALUES('%s', '%s')""" % (row[1].strip(),row[0].strip()))
     conn.commit()
     cur.close()
 
@@ -51,12 +67,30 @@ def query(conn,query):
     cur.close()
     return result
 
+def check_lastupdate(update=False):
+    config = Config.get_config()
+    result = 0
+    now = int(datetime.now().strftime(TIMEFORMAT))
+    if update:
+        config.set('week52lastupdate', str(now))
+        config.write()
+    else:
+        now -  int(config.get('week52lastupdate'))
+    return result
+
 def all_symbols(conn):
     cur = conn.cursor()
     cur.execute("""SELECT DISTINCT sym FROM stocks """)
     result = cur.fetchall()
     cur.close()
     return result
+
+def get_indices(conn):
+    cur = conn.cursor()
+    cur.execute("""SELECT DISTINCT sym FROM indices """)
+    result = cur.fetchall()
+    cur.close()
+    return map(lambda x:x[0],result)
 
 def range_high_low(conn,symbol, start=None, end=None, high_low='high'):
     end = end or datetime.now()
@@ -79,10 +113,13 @@ def week52(conn, symbol, high_low='high'):
 
 def week52diff(conn, high_low='high'):
     symbols = map(lambda x:x[0], all_symbols(conn))
+    indices = get_indices(conn)
+    print indices
     w52highs = {}
     key = 'high'
     picks = []
     for sym in symbols:
+        if sym in indices:continue
         last_val = last_value(conn, sym, 'high')
         high52 = week52(conn,sym,'high')
         w52highs[sym] = {key:last_val,
@@ -103,6 +140,8 @@ def last_value(conn, symbol, col):
 
 def main(args):
     conn = sqlite3.connect('asx.db')
+    print check_lastupdate(update=True)
+    print check_lastupdate()
     result = None
     if args.builddb:
         builddb(conn)
@@ -122,6 +161,33 @@ def main(args):
     conn.close()
     return result
 
+class Config(object):
+    defaultconfig = None
+    def __init__(self):
+        self.config = ConfigParser.SafeConfigParser()
+        self.config.add_section('stocktool')
+        self.config.set('stocktool','week52lastupdate','0')
+        self.config.set('stocktool','stock_lastupdate','0')
+
+        with open('stocktool.cfg','r') as cf:
+            self.config.read(cf)
+
+    def set(self,attr, value):
+        self.config.set('stocktool',attr,value)
+
+    def get(self,attr):
+        return self.config.get('stocktool', attr)
+
+
+    def write(self):
+        with open('stocktool.cfg','w') as cf:
+            self.config.write(cf)
+
+    @classmethod
+    def get_config(cls):
+        if not cls.defaultconfig:
+            cls.defaultconfig = Config()
+        return cls.defaultconfig
 
 
 if __name__ == "__main__":
@@ -137,6 +203,6 @@ if __name__ == "__main__":
     parser.add_argument('--list-symbols', default=False, action="store_true", help='build  database')
     args = parser.parse_args()
     result = main(args)
-    print result
+    print(result)
     sys.exit(0)
 

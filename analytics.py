@@ -10,7 +10,6 @@ from datetime import datetime, timedelta
 from fish import ProgressFish, Bird, Fish, SwimFishNoSync
 import urllib2
 import json
-from instapaperlib import Instapaper
 from readability.readability import Readability
 import psycopg2
 from dateutil.parser import parse as dateparse
@@ -83,15 +82,6 @@ def get_yahoo_news(symbol):
             logging.exception(e)
     return news
 
-def to_instapaper(news, instapaper_user, instapaper_pass):
-    instalib = Instapaper(instapaper_user,instapaper_pass)
-    status, header = instalib.auth()
-    if status != 200:
-        raise Exception("Instapaper login fail")
-    for new in news:
-        statuscode, statusmessage = instalib.add_item(new['href'], "%s - %s" % (new['title'],new['source']))
-        print (statuscode)
-
 def check_fetch(url, date):
     conn = _get_doc_dbconn()
     cur = conn.cursor()
@@ -136,10 +126,6 @@ def main(args):
         result = get_yahoo_news(args.yahoo_news)
     if args.readability:
         readability(args.yahoo_news,result)
-    #if args.instapaper_user:
-    #    to_instapaper(result, args.instapaper_user, args.instapaper_pass)
-    #if args.query:
-    #result = query(conn, args.query)
     conn.close()
     return result
 
@@ -151,8 +137,6 @@ if __name__ == "__main__":
     parser.add_argument('--yahoo-news',   default='', help='show notification')
     parser.add_argument('--query',   default='', help='show notification')
     parser.add_argument('--readability', default=False, action="store_true", help='show notification')
-    parser.add_argument('--instapaper-user',   default='stevenjose@gmail.com', help='show notification')
-    parser.add_argument('--instapaper-pass',   default='fedoracore9', help='show notification')
     args = parser.parse_args()
     result = main(args)
     for result in result:
