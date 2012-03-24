@@ -1,0 +1,3 @@
+[submodule "readability"]
+	path = readability
+	url = git@github.com:jagguli/readability.git
