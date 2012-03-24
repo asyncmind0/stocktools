@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+
+{% block title %}Market Dog{% endblock %}
+
+{% block content %}
+<h1>Stock News for {{ symbol }}</h1>
+{% for document in documents %}
+<h2>{{document.symbol}} - {{document.title }} </h2>
+<p>{{document.content|safe}}</p>
+<br>
+{% endfor %}
+{% endblock %}
