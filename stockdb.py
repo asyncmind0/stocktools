@@ -12,17 +12,20 @@ from analytics import get_name_sector
 import ConfigParser, io
 DATEFORMAT = "%Y%m%d"
 TIMEFORMAT = "%Y%m%d%H%M%S"
+INMEMORY = False
+DBFILE ='asx.db' if not INMEMORY else ":memory:"
 
 
 def get_num_lines():
     total_linenum = 0
-    for histfile in glob.glob("**/*.TXT"):
+    for histfile in glob.glob("history/**/*.TXT"):
         with open(histfile) as f:
             for l in f:
                 total_linenum+= 1
     return total_linenum
 
 def builddb(conn):
+    start = datetime.now()
     print("Calculating data size")
     numlines = get_num_lines()
     print("Number of etries: %s"%numlines)
@@ -43,7 +46,7 @@ def builddb(conn):
                 % (row[1],row[0].replace("'","''"),row[2],0, 0,int(datetime.now().strftime(DATEFORMAT))))
 
     ptotal = 0
-    for histfile in glob.glob("**/*.TXT"):
+    for histfile in glob.glob("history/**/*.TXT"):
         with open(histfile, 'r') as f:
             reader = csv.reader(f)
             for row in reader:
@@ -52,6 +55,9 @@ def builddb(conn):
                 ptotal+=1
                 cur.execute(""" INSERT INTO stocks VALUES('%s',%s,%s, %s,%s,%s,%s)""" % (row[0],row[1],row[2],row[3],
                                 row[4], row[5],row[6]))
+                if ptotal%1000 ==0:
+                    print '\r',
+                    print ptotal,
     indices_file = 'ASXIndices.csv'
     with open(indices_file, 'r') as f:
         reader = csv.reader(f)
@@ -59,6 +65,7 @@ def builddb(conn):
             cur.execute("""INSERT INTO indices VALUES('%s', '%s')""" % (row[1].strip(),row[0].strip()))
     conn.commit()
     cur.close()
+    print "Completed in %s "% (datetime.now()-start)
 
 def query(conn,query):
     cur = conn.cursor()
@@ -139,7 +146,7 @@ def last_value(conn, symbol, col):
     return result[0][0]
 
 def main(args):
-    conn = sqlite3.connect('asx.db')
+    conn = sqlite3.connect(DBFILE)
     print check_lastupdate(update=True)
     print check_lastupdate()
     result = None

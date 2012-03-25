@@ -3,7 +3,7 @@ import os.path
 
 DEBUG = True
 TEMPLATE_DEBUG = DEBUG
-BASE_URL="marketdog/"
+BASE_URL=""
 
 ADMINS = (
     # ('Your Name', 'your_email@example.com'),
@@ -14,11 +14,11 @@ MANAGERS = ADMINS
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql_psycopg2', # Add 'postgresql_psycopg2', 'postgresql', 'mysql', 'sqlite3' or 'oracle'.
-        'NAME': 'watchdog',                      # Or path to database file if using sqlite3.
-        'USER': 'watchdog',                      # Not used with sqlite3.
-        'PASSWORD': 'watchdog',                  # Not used with sqlite3.
+        'NAME': 'stocktool',                      # Or path to database file if using sqlite3.
+        'USER': 'stocktool',                      # Not used with sqlite3.
+        'PASSWORD': 'stocktool',                  # Not used with sqlite3.
         'HOST': '',                      # Set to empty string for localhost. Not used with sqlite3.
-        'PORT': '',                      # Set to empty string for default. Not used with sqlite3.
+        'PORT': '6432',                      # Set to empty string for default. Not used with sqlite3.
     }
 }
 
