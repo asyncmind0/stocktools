@@ -8,15 +8,16 @@ import sqlite3
 import csv
 import glob
 from datetime import datetime, timedelta
-from analytics import get_name_sector
 import ConfigParser, io
 from zmqrpc.server import ZMQRPCServer, LISTEN, CONNECT
+import signal
+import thread, threading
 DATEFORMAT = "%Y%m%d"
 TIMEFORMAT = "%Y%m%d%H%M%S"
-INMEMORY = False
-DBFILE ='asx.db' if not INMEMORY else ":memory:"
+INMEMORY = True
+DBFILE =":memory:" if INMEMORY else 'asx.db'
 
-class StockTool(object):
+class StockDb(object):
     conn = None
     def __init__(self):
         self.conn = sqlite3.connect(DBFILE)
@@ -30,6 +31,15 @@ class StockTool(object):
                 for l in f:
                     total_linenum+= 1
         return total_linenum
+
+    def get_name_sector(self,symbol):
+        cur = self.conn.cursor()
+        cur.execute("""SELECT name,sector FROM analytics WHERE sym='%s' """%symbol)
+        result = cur.fetchall()
+        cur.close()
+        if not result:
+            logging.debug("no info for %s"%symbol)
+        return result[0] if result else ('','')
 
     def builddb(self):
         start = datetime.now()
@@ -106,43 +116,19 @@ class StockTool(object):
         cur.close()
         return map(lambda x:x[0],result)
 
-    def range_high_low(self,symbol, start=None, end=None, high_low='high'):
+    def date_range(self,symbol, start=None, end=None, columns=['high']):
         end = end or datetime.now()
         start = start or (end - timedelta(weeks=52))
         cur = self.conn.cursor()
-        cur.execute("""SELECT %s, date FROM stocks WHERE
-                sym='%s' and date BETWEEN %s AND %s""" \
-                        %(high_low,symbol, start.strftime("%Y%m%d"), end.strftime("%Y%m%d")))
+        scolumns = ''
+        for column in columns:
+            scolumns+='%s, '
+        params = tuple(columns+[symbol,start.strftime("%Y%m%d"), end.strftime("%Y%m%d")])
+        sqlquery = "SELECT "+scolumns+" date FROM stocks WHERE sym='%s' and date BETWEEN %s AND %s"
+        cur.execute(sqlquery % params)
         result = cur.fetchall()
         cur.close()
         return result
-
-    def week52(self, symbol, high_low='high'):
-        result = self.range_high_low(symbol,high_low=high_low)
-        reverse  = False if high_low=='low' else True
-        result.sort(key=lambda x:x[0], reverse=reverse)
-        if not result:
-            logging.debug("no 52week %s for %s" % (high_low,symbol))
-        return result[0][0] if result else 0
-
-    def week52diff(self, high_low='high'):
-        symbols = map(lambda x:x[0], self.all_symbols())
-        indices = self.get_indices()
-        w52highs = {}
-        key = 'high'
-        picks = []
-        for sym in symbols:
-            if sym in indices:continue
-            last_val = self.last_value(sym, 'high')
-            high52 = self.week52(sym,'high')
-            w52highs[sym] = {key:last_val,
-                 '52%s'%high_low:high52}
-            change = last_val-high52 if high_low == 'low' else high52-last_val
-            name, sector = get_name_sector(sym)
-            picks.append((sym,change,high52, last_val, name, sector))
-        reverse  = False if high_low=='low' else True
-        picks.sort(key=lambda x:x[1],reverse=reverse)
-        return picks
 
     def last_value(self, symbol, col):
         cur = self.conn.cursor()
@@ -150,6 +136,9 @@ class StockTool(object):
         result = cur.fetchall()
         cur.close()
         return result[0][0]
+
+    def quit(self):
+        threading.currentThread().exit()
 
     def main(args):
         conn = sqlite3.connect(DBFILE)
@@ -172,6 +161,15 @@ class StockTool(object):
             result = map(lambda x:x[0], all_symbols(conn))
 
         conn.close()
+        return result
+
+    def exec_tool(self,toolmodule,toolset,toolname, **kwargs):
+        tools = __import__(toolmodule)
+        tools = reload(tools)
+        cl = getattr(tools,toolset)(self)
+        result =  getattr(cl,toolname)(**kwargs)
+        del cl
+        del tools
         return result
 
 class Config(object):
@@ -215,9 +213,18 @@ if __name__ == "__main__":
     parser.add_argument('--week52loosers', default=False, action='store_true', help='show notification')
     parser.add_argument('--list-symbols', default=False, action="store_true", help='build  database')
     args = parser.parse_args()
-    server = ZMQRPCServer(StockTool)
+    def signal_handler(signal, frame):
+        print 'You pressed Ctrl+C!'
+        sys.exit(0)
+
+    signal.signal(signal.SIGINT, signal_handler)
+    server = ZMQRPCServer(StockDb)
     server.queue('tcp://0.0.0.0:5000',thread=True)
     server.work(workers=1)
+    for thread in threading.enumerate():
+        if thread is not threading.currentThread():
+            thread.join()
+    print "Done"
     #result = main(args)
     #print(result)
     sys.exit(0)

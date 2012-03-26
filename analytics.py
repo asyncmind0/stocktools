@@ -7,7 +7,6 @@ import sqlite3
 import csv
 import glob
 from datetime import datetime, timedelta
-from fish import ProgressFish, Bird, Fish, SwimFishNoSync
 import urllib2
 import json
 from readability.readability import Readability
