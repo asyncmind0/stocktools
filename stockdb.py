@@ -3,7 +3,7 @@ from debug import debug as sj_debug
 
 import logging
 import argparse
-import sys
+import sys,os 
 import sqlite3
 import csv
 import glob
@@ -41,16 +41,29 @@ class StockDb(object):
             logging.debug("no info for %s"%symbol)
         return result[0] if result else ('','')
 
-    def builddb(self):
-        start = datetime.now()
-        print("Calculating data size")
-        numlines = self.get_num_lines()
-        print("Number of etries: %s"%numlines)
+    def check_table_exists(self,table_name):
         cur = self.conn.cursor()
-        cur.execute("""CREATE TABLE IF NOT EXISTS stocks (sym text, date text, open real, close real,
-                        high real, low real, volume real, UNIQUE(sym,date) ON CONFLICT REPLACE)""")
+        cur.execute("""SELECT name FROM sqlite_master WHERE type='table' AND name='%s'"""%table_name)
+        res = cur.fetchone()
+        return True if res else False
+
+    def build_indices_table(self):
+        start = datetime.now()
+        cur = self.conn.cursor()
         cur.execute("""CREATE TABLE IF NOT EXISTS indices (sym text, name text,
                          UNIQUE(sym) ON CONFLICT REPLACE)""")
+        indices_file = 'ASXIndices.csv'
+        with open(indices_file, 'r') as f:
+            reader = csv.reader(f)
+            for row in reader:
+                cur.execute("""INSERT INTO indices VALUES('%s', '%s')""" % (row[1].strip(),row[0].strip()))
+        self.conn.commit()
+        cur.close()
+        print "Completed Indices in %s "% (datetime.now()-start)
+
+    def build_analytics_table(self):
+        start = datetime.now()
+        cur = self.conn.cursor()
         cur.execute("""CREATE TABLE IF NOT EXISTS analytics (sym text, name text, sector text, week52high real,
                         week52low real, last_price real, UNIQUE(sym) ON CONFLICT REPLACE)""")
         ptotal = 0
@@ -61,7 +74,18 @@ class StockDb(object):
                 if i==1:continue
                 cur.execute(""" INSERT INTO analytics VALUES('%s','%s','%s', %s,%s,%s)""" \
                     % (row[1],row[0].replace("'","''"),row[2],0, 0,int(datetime.now().strftime(DATEFORMAT))))
+        self.conn.commit()
+        cur.close()
+        print "Completed Analytics in %s "% (datetime.now()-start)
 
+    def build_stock_table(self):
+        start = datetime.now()
+        print("Calculating historical stock data size")
+        numlines = self.get_num_lines()
+        print("Number of etries: %s"%numlines)
+        cur = self.conn.cursor()
+        cur.execute("""CREATE TABLE IF NOT EXISTS stocks (sym text, date text, open real, close real,
+                        high real, low real, volume real, UNIQUE(sym,date) ON CONFLICT REPLACE)""")
         ptotal = 0
         for histfile in glob.glob("history/**/*.TXT"):
             with open(histfile, 'r') as f:
@@ -75,11 +99,6 @@ class StockDb(object):
                     if ptotal%1000 ==0:
                         print '\r',
                         print ptotal,
-        indices_file = 'ASXIndices.csv'
-        with open(indices_file, 'r') as f:
-            reader = csv.reader(f)
-            for row in reader:
-                cur.execute("""INSERT INTO indices VALUES('%s', '%s')""" % (row[1].strip(),row[0].strip()))
         self.conn.commit()
         cur.close()
         print "Completed in %s "% (datetime.now()-start)
@@ -137,8 +156,8 @@ class StockDb(object):
         cur.close()
         return result[0][0]
 
-    def quit(self):
-        threading.currentThread().exit()
+    def shutdown(self):
+        os._exit(0)
 
     def main(args):
         conn = sqlite3.connect(DBFILE)

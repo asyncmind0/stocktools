@@ -11,7 +11,7 @@ class ClientTools(object):
         if not result:
             logging.debug("no 52week %s for %s" % (high_low,symbol))
 
-        return result[0][0] if result else 0
+        return result[0][0] if result else -1
 
     def week52diff(self, high_low='high'):
         symbols = map(lambda x:x[0], self.rpc.all_symbols())
@@ -21,8 +21,10 @@ class ClientTools(object):
         picks = []
         for sym in symbols:
             if sym in indices:continue
-            last_val = self.rpc.last_value(sym, 'high')
             high52 = self.week52(sym,'high')
+            if high52 <0:
+                continue
+            last_val = self.rpc.last_value(sym, 'high')
             w52highs[sym] = {key:last_val,
                  '52%s'%high_low:high52}
             change = last_val-high52 if high_low == 'low' else high52-last_val
