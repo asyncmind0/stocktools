@@ -3,7 +3,8 @@ import os.path
 
 DEBUG = True
 TEMPLATE_DEBUG = DEBUG
-BASE_URL=""
+#BASE_URL=""
+BASE_URL="marketdog/"
 
 ADMINS = (
     # ('Your Name', 'your_email@example.com'),
@@ -18,7 +19,7 @@ DATABASES = {
         'USER': 'stocktool',                      # Not used with sqlite3.
         'PASSWORD': 'stocktool',                  # Not used with sqlite3.
         'HOST': '',                      # Set to empty string for localhost. Not used with sqlite3.
-        'PORT': '6432',                      # Set to empty string for default. Not used with sqlite3.
+        'PORT': '',                      # Set to empty string for default. Not used with sqlite3.
     }
 }
 

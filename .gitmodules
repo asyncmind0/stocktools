@@ -1,3 +1,6 @@
 [submodule "readability"]
 	path = readability
 	url = git@github.com:jagguli/readability.git
+[submodule "zmqrpc"]
+	path = zmqrpc
+	url = git@github.com:jagguli/zmqrpc.git
