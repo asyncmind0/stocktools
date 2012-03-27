@@ -20,10 +20,12 @@ DBFILE =":memory:" if INMEMORY else 'asx.db'
 
 class StockDb(object):
     conn = None
+    _shutdown=False
     def __init__(self):
         self.conn = sqlite3.connect(DBFILE)
-        print self.check_lastupdate(update=True)
-        print self.check_lastupdate()
+
+    def get_status(self):
+        return "Running"
 
     def get_num_lines(self):
         total_linenum = 0
@@ -42,16 +44,19 @@ class StockDb(object):
             logging.debug("no info for %s"%symbol)
         return result[0] if result else ('','')
 
-    def load_db(self):
-        bdb = sqlite3.connect('asx.db')
+    def load_db(self,dbfile='asx.db'):
+        print("Loading db from from %s" % dbfile)
+        bdb = sqlite3.connect(dbfile)
         sqlitebck.copy(bdb,self.conn)
         bdb.close()
+        print("Loaded db from from %s" % dbfile)
 
-    def dump_db(self):
-        bdb = sqlite3.connect('asx.db')
+    def dump_db(self,dbfile='ask.db'):
+        print("Dumping db to %s" % dbfile)
+        bdb = sqlite3.connect(dbfile)
         sqlitebck.copy(self.conn,bdb)
         bdb.close()
-
+        print("Dumped db to %s" % dbfile)
 
     def check_table_exists(self,table_name):
         cur = self.conn.cursor()
@@ -61,6 +66,8 @@ class StockDb(object):
 
     def build_indices_table(self):
         start = datetime.now()
+        if not self.check_table_exists('fts'):
+            self.build_fts()
         cur = self.conn.cursor()
         cur.execute("""CREATE TABLE IF NOT EXISTS indices (sym text, name text,
                          UNIQUE(sym) ON CONFLICT REPLACE)""")
@@ -68,13 +75,18 @@ class StockDb(object):
         with open(indices_file, 'r') as f:
             reader = csv.reader(f)
             for row in reader:
-                cur.execute("""INSERT INTO indices VALUES('%s', '%s')""" % (row[1].strip(),row[0].strip()))
+                sym = row[1].strip()
+                name = row[0].strip().replace("'","''")
+                cur.execute("""INSERT INTO indices VALUES('%s', '%s')""" % (sym, name))
+                cur.execute("""INSERT INTO fts VALUES('%s', '%s')""" % (sym, name))
         self.conn.commit()
         cur.close()
         print "Completed Indices in %s "% (datetime.now()-start)
 
     def build_analytics_table(self):
         start = datetime.now()
+        if not self.check_table_exists('fts'):
+            self.build_fts()
         cur = self.conn.cursor()
         cur.execute("""CREATE TABLE IF NOT EXISTS analytics (sym text, name text, sector text, week52high real,
                         week52low real, last_price real, UNIQUE(sym) ON CONFLICT REPLACE)""")
@@ -84,8 +96,15 @@ class StockDb(object):
             reader = csv.reader(f)
             for i, row in enumerate(reader):
                 if i==1:continue
+                sym = row[1].strip()
+                name = row[0].strip().replace("'","''")
+                sector = row[2].strip().replace("'","''")
+                week52high = 0
+                week52low = 0
+                last_price = 0
                 cur.execute(""" INSERT INTO analytics VALUES('%s','%s','%s', %s,%s,%s)""" \
-                    % (row[1],row[0].replace("'","''"),row[2],0, 0,int(datetime.now().strftime(DATEFORMAT))))
+                    % (sym,name,sector,week52high,week52low,last_price))
+                cur.execute("""INSERT INTO fts VALUES('%s', '%s')""" % (sym,name))
         self.conn.commit()
         cur.close()
         print "Completed Analytics in %s "% (datetime.now()-start)
@@ -114,6 +133,13 @@ class StockDb(object):
         self.conn.commit()
         cur.close()
         print "Completed in %s "% (datetime.now()-start)
+
+    def build_fts(self):
+        cur = self.conn.cursor()
+        cur.execute("""CREATE VIRTUAL TABLE  fts USING FTS3(sym , name )""")
+        self.conn.commit()
+        cur.close()
+
 
     def query(self,query):
         cur = self.conn.cursor()
@@ -169,7 +195,11 @@ class StockDb(object):
         return result[0][0]
 
     def shutdown(self):
+        self._shutdown = True
+        #return True
         os._exit(0)
+
+
 
     def main(args):
         conn = sqlite3.connect(DBFILE)
@@ -251,12 +281,8 @@ if __name__ == "__main__":
     signal.signal(signal.SIGINT, signal_handler)
     server = ZMQRPCServer(StockDb)
     server.queue('tcp://0.0.0.0:5000',thread=True)
+    print("Starting RPC server")
     server.work(workers=1)
-    for thread in threading.enumerate():
-        if thread is not threading.currentThread():
-            thread.join()
     print "Done"
-    #result = main(args)
-    #print(result)
     sys.exit(0)
 

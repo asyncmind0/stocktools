@@ -146,3 +146,9 @@ class ClientTools(object):
         cur.close()
         sector_prices.sort(key=lambda x:x[0], reverse=True)
         return sector_prices
+
+    def search(self,term):
+        cur = self.rpc.conn.cursor()
+        cur.execute("""SELECT * FROM fts WHERE name MATCH '%s'""" % term)
+        result = cur.fetchall()
+        return result
