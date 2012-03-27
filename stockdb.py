@@ -12,6 +12,7 @@ import ConfigParser, io
 from zmqrpc.server import ZMQRPCServer, LISTEN, CONNECT
 import signal
 import thread, threading
+import sqlitebck
 DATEFORMAT = "%Y%m%d"
 TIMEFORMAT = "%Y%m%d%H%M%S"
 INMEMORY = True
@@ -40,6 +41,17 @@ class StockDb(object):
         if not result:
             logging.debug("no info for %s"%symbol)
         return result[0] if result else ('','')
+
+    def load_db(self):
+        bdb = sqlite3.connect('asx.db')
+        sqlitebck.copy(bdb,self.conn)
+        bdb.close()
+
+    def dump_db(self):
+        bdb = sqlite3.connect('asx.db')
+        sqlitebck.copy(self.conn,bdb)
+        bdb.close()
+
 
     def check_table_exists(self,table_name):
         cur = self.conn.cursor()

@@ -4,3 +4,6 @@
 [submodule "zmqrpc"]
 	path = zmqrpc
 	url = git@github.com:jagguli/zmqrpc.git
+[submodule "python-sqlite3-backup"]
+	path = python-sqlite3-backup
+	url = git@github.com:jagguli/python-sqlite3-backup.git
