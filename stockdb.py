@@ -84,7 +84,7 @@ class StockDb(object):
         numlines = self.get_num_lines()
         print("Number of etries: %s"%numlines)
         cur = self.conn.cursor()
-        cur.execute("""CREATE TABLE IF NOT EXISTS stocks (sym text, date text, open real, close real,
+        cur.execute("""CREATE TABLE IF NOT EXISTS stocks (sym text, date integer, open real, close real,
                         high real, low real, volume real, UNIQUE(sym,date) ON CONFLICT REPLACE)""")
         ptotal = 0
         for histfile in glob.glob("history/**/*.TXT"):
@@ -182,11 +182,11 @@ class StockDb(object):
         conn.close()
         return result
 
-    def exec_tool(self,toolmodule,toolset,toolname, **kwargs):
+    def exec_tool(self,toolmodule,toolset,toolname,*args, **kwargs):
         tools = __import__(toolmodule)
         tools = reload(tools)
         cl = getattr(tools,toolset)(self)
-        result =  getattr(cl,toolname)(**kwargs)
+        result =  getattr(cl,toolname)(*args, **kwargs)
         del cl
         del tools
         return result
