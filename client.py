@@ -92,21 +92,23 @@ def print_portfolios():
     from portfolios import portfolios
     import ystockquote
 
+
     header = []
 
-    for h in ["SYM","MKT PRICE", "MKT VALUE", "PUR PRICE", "PUR VALUE", "CHANGE", "TOTAL_CHG"]:
+    for h in ["SYM","PRICE", "VALUE", "COST PRICE", "COST", "CHANGE", "TOTAL_CHG"]:
         header.append(colored(h,'magenta'))
 
-    myscrips = [
-        header,]
 
     def colorize(val):
         return colored(str(val),'red' if val<0 else 'green')
 
-    portfolio_mkt_val = 0
-    portfolio_pur_val = 0
 
     for name,portfolio in portfolios.items():
+        myscrips = [
+            header,]
+        portfolio_mkt_val = 0
+        portfolio_pur_val = 0
+        portfolio_commision_cost = 0
         print colored(name,'cyan')
         print "="*80
         for scrip in portfolio:
@@ -114,6 +116,7 @@ def print_portfolios():
             scrip_price = float(script_details['price'])
             portfolio_mkt_val+=scrip_price*scrip['qty']
             portfolio_pur_val+=scrip['value']*scrip['qty']
+            portfolio_commision_cost += scrip['brokerage']
             myscrips.append([
                     colored(str(scrip['sym']),'white'),
                     colored(str(scrip_price),'white'),
@@ -124,5 +127,7 @@ def print_portfolios():
                     colorize((scrip_price*scrip['qty'])-(scrip['value']*scrip['qty']))])
 
         pprint_table(myscrips)
-        print "Portfolio: %s (mkt) %s (pur)" % (portfolio_mkt_val,portfolio_pur_val)
-        print "Gain: %s " % colorize(portfolio_mkt_val-portfolio_pur_val)
+        print "Portfolio: %s (value) %s (cost)" % (portfolio_mkt_val+portfolio_commision_cost,portfolio_pur_val+portfolio_commision_cost)
+        print "Mkt Gains: %s " % colorize(portfolio_mkt_val-portfolio_pur_val)
+        print "Act Gains: %s " % colorize(portfolio_mkt_val-(portfolio_pur_val+portfolio_commision_cost))
+        print "Total Commission:%s" % portfolio_commision_cost
