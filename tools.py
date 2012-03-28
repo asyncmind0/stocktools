@@ -131,17 +131,38 @@ class ClientTools(object):
 
     def get_sector_stocks(self,sector):
         cur = self.rpc.conn.cursor()
-        cur.execute("""SELECT DISTINCT(sym) FROM analytics WHERE sector = '%s'"""%sector)
+        cur.execute("""SELECT DISTINCT(sym),name FROM analytics WHERE sector = '%s'"""%sector)
         result = cur.fetchall()
         cur.close()
-        return map(lambda x:x[0],result) if result else []
+        return result
+        #return map(lambda x:x[0],result) if result else []
+
+    def get_sector_leaders2(self, sector):
+        cur = self.rpc.conn.cursor()
+        query1 = """SELECT stocks.close,stocks.volume,
+                    stocks.sym,stocks.date,analytics.name 
+                    FROM stocks LEFT OUTER JOIN analytics ON analytics.sym = stocks.sym
+                    WHERE analytics.sector = '%s'
+                    and stocks.sym in (select """ % sector
+        query2 = """SELECT max(stocks.date),sym from stocks group by sym"""
+        query3 = """SELECT stocks.close,stocks.volume,stocks.sym,max(stocks.date), analytics.name 
+                    from stocks,analytics where stocks.sym = analytics.sym and analytics.sector ='%s' 
+                    group by stocks.sym""" % sector
+        cur.execute(query3)
+        result = cur.fetchall()
+        result.sort(key=lambda x:x[0], reverse=True)
+        return result
 
     def get_sector_leaders(self, sector):
         cur = self.rpc.conn.cursor()
         sector_stocks = self.get_sector_stocks(sector)
         sector_prices = []
         for sym in sector_stocks:
-            cur.execute("""SELECT close,volume,sym,max(date) FROM stocks WHERE sym = '%s'""" % sym)
+            cur.execute("""SELECT stocks.close,stocks.volume,
+                    stocks.sym,max(stocks.date),analytics.name 
+                    FROM stocks, analytics 
+                    WHERE stocks.sym = '%s' and analytics.sym = '%s' and analytics.sector = '%s' """ % \
+                            (sym[0], sym[0], sector))
             sector_prices.append(cur.fetchone())
         cur.close()
         sector_prices.sort(key=lambda x:x[0], reverse=True)
@@ -152,3 +173,9 @@ class ClientTools(object):
         cur.execute("""SELECT * FROM fts WHERE name MATCH '%s'""" % term)
         result = cur.fetchall()
         return result
+    def get_prices(self,stocks, column):
+        stocks = stocks.split(',') if isinstance(stocks,(str,unicode)) else []
+        prices = []
+        for stock in stocks:
+            prices.append((stock,self.rpc.last_value(stock,column)))
+        return prices

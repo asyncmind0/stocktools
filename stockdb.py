@@ -127,9 +127,9 @@ class StockDb(object):
                     ptotal+=1
                     cur.execute(""" INSERT INTO stocks VALUES('%s',%s,%s, %s,%s,%s,%s)""" % (row[0],row[1],row[2],row[3],
                                     row[4], row[5],row[6]))
-                    if ptotal%1000 ==0:
-                        print '\r',
-                        print ptotal,
+                    #if ptotal%1000 ==0:
+                    #    print '\r',
+                    #    print ptotal,
         self.conn.commit()
         cur.close()
         print "Completed in %s "% (datetime.now()-start)
