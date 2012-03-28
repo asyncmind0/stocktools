@@ -1,4 +1,4 @@
-from zmqrpc.client import ZMQRPC 
+from zmqrpc.client import ZMQRPC
 import sys
 import pprint
 import logging
@@ -11,6 +11,7 @@ from dateutil.parser import parse as dateparse
 DATEFORMAT = "%Y%m%d"
 TIMEFORMAT = "%Y%m%d"
 YAHOO_API="http://query.yahooapis.com/v1/public/yql?q=%s&format=json"
+GOOGLE_API="http://finance.google.com/finance/info?client=ig&q=%s"
 
 
 def plot_stock_graph(rpc, symbol, startdate=None, enddate=None):
@@ -52,13 +53,76 @@ def get_yahoo_news(symbol):
                 href = href1
             href = urllib2.unquote(href)
             date = dateparse(result['cite']['span'].strip().replace('(','').replace(')',''))
-            news.append(dict(title=result['a']['content'].strip(), 
+            news.append(dict(title=result['a']['content'].strip(),
                 href=href, source=result['cite']['content'].strip(),
                 date=date))
         except Exception as e:
             logging.exception(e)
     return news
+def get_price_google(symbol):
+    googlequery = GOOGLE_API % urllib2.quote('ASX:'+symbol)
+    results = urllib2.urlopen(googlequery).read()
+    results = json.loads(results[3:])
+    return results
+
 #results = rpc.exec_tool('tools','ClientTools','week52diff',high_low='low')
 #print results
 servers = rpc.__serverstatus__()
 pprint.pprint(servers)
+
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+
+    def disable(self):
+        self.HEADER = ''
+        self.OKBLUE = ''
+        self.OKGREEN = ''
+        self.WARNING = ''
+        self.FAIL = ''
+        self.ENDC = ''
+
+def print_portfolios():
+    from termcolor import colored
+    from table import pprint_table
+    from portfolios import portfolios
+    import ystockquote
+
+    header = []
+
+    for h in ["SYM","MKT PRICE", "MKT VALUE", "PUR PRICE", "PUR VALUE", "CHANGE", "TOTAL_CHG"]:
+        header.append(colored(h,'magenta'))
+
+    myscrips = [
+        header,]
+
+    def colorize(val):
+        return colored(str(val),'red' if val<0 else 'green')
+
+    portfolio_mkt_val = 0
+    portfolio_pur_val = 0
+
+    for name,portfolio in portfolios.items():
+        print colored(name,'cyan')
+        print "="*80
+        for scrip in portfolio:
+            script_details = ystockquote.get_all(scrip['sym'])
+            scrip_price = float(script_details['price'])
+            portfolio_mkt_val+=scrip_price*scrip['qty']
+            portfolio_pur_val+=scrip['value']*scrip['qty']
+            myscrips.append([
+                    colored(str(scrip['sym']),'white'),
+                    colored(str(scrip_price),'white'),
+                    colored(str(scrip_price*scrip['qty']),'white'),
+                    colored(str(scrip['value']),'white'),
+                    colored(str(scrip['value']*scrip['qty']),'white'),
+                    colorize(scrip_price-scrip['value']),
+                    colorize((scrip_price*scrip['qty'])-(scrip['value']*scrip['qty']))])
+
+        pprint_table(myscrips)
+        print "Portfolio: %s (mkt) %s (pur)" % (portfolio_mkt_val,portfolio_pur_val)
+        print "Gain: %s " % colorize(portfolio_mkt_val-portfolio_pur_val)
