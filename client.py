@@ -8,11 +8,21 @@ import pylab
 import urllib2
 import json
 from dateutil.parser import parse as dateparse
+from docstore import CouchdbStore, readability
 DATEFORMAT = "%Y%m%d"
 TIMEFORMAT = "%Y%m%d"
 YAHOO_API="http://query.yahooapis.com/v1/public/yql?q=%s&format=json"
 GOOGLE_API="http://finance.google.com/finance/info?client=ig&q=%s"
 
+rpc = ZMQRPC("tcp://127.0.0.1:5000",timeout=50000)
+#results = rpc.exec_tool('tools','ClientTools','week52diff',high_low='low')
+#print results
+print "Server is %s" % rpc.get_status()
+servers = rpc.__serverstatus__()
+pprint.pprint(servers)
+if len(sys.argv)>1:
+    method = getattr(rpc,sys.argv[1])
+    result = method()
 
 def plot_stock_graph(rpc, symbol, startdate=None, enddate=None):
     hist = rpc.date_range(symbol)
@@ -21,11 +31,20 @@ def plot_stock_graph(rpc, symbol, startdate=None, enddate=None):
     #http://www.gossamer-threads.com/lists/python/python/665196
     pylab.plot_date(pylab.date2num(dates), avg,linestyle='-', marker='None')
 
-rpc = ZMQRPC("tcp://127.0.0.1:5000",timeout=50000)
-print "Server is %s" % rpc.get_status()
-if len(sys.argv)>1:
-    method = getattr(rpc,sys.argv[1])
-    result = method()
+def investopedia(term, default=0):
+    SEARCH = "http://www.investopedia.com/search/default.aspx?q=%s"
+    from BeautifulSoup import BeautifulSoup
+    from html2text import html2text
+    results = BeautifulSoup(urllib2.urlopen(SEARCH % urllib2.quote(term)).read())
+    results = results.find(attrs={'id':'Definitions'}).findAll('li')
+    for i,result in enumerate(results):
+        print i, result.first().a.text
+    print "Select result:"
+    index = sys.stdin.readline().strip() or default
+    selected =  results[int(index)].a.attrs[0][1]
+    content = BeautifulSoup(urllib2.urlopen(selected).read())
+    content = content.find(attrs={'class':'table-definition'})
+    return html2text(content.prettify())
 
 def init_tables(rpc):
     if not rpc.check_table_exists('indices'):
@@ -34,6 +53,20 @@ def init_tables(rpc):
         rpc.build_analytics_table()
     if not rpc.check_table_exists('stocks'):
         rpc.build_stock_table()
+
+def get_news(symbol):
+    cdb = CouchdbStore()
+    news = get_yahoo_news(symbol)
+    results = []
+    for n in news:
+        docs = cdb.get_doc(n['href']).all()
+        if docs:
+            results.extend(docs)
+        else:
+            results.append(readability(cdb,symbol,n))
+
+    return results
+
 
 def get_yahoo_news(symbol):
     yqlquery = """select * from html where url="http://finance.yahoo.com/q?s=%s" and xpath='//div[@id="yfi_headlines"]/div[2]/ul/li' """% symbol
@@ -59,16 +92,13 @@ def get_yahoo_news(symbol):
         except Exception as e:
             logging.exception(e)
     return news
+
 def get_price_google(symbol):
     googlequery = GOOGLE_API % urllib2.quote('ASX:'+symbol)
     results = urllib2.urlopen(googlequery).read()
     results = json.loads(results[3:])
     return results
 
-#results = rpc.exec_tool('tools','ClientTools','week52diff',high_low='low')
-#print results
-servers = rpc.__serverstatus__()
-pprint.pprint(servers)
 
 class bcolors:
     HEADER = '\033[95m'
