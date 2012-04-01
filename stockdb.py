@@ -17,8 +17,79 @@ DATEFORMAT = "%Y%m%d"
 TIMEFORMAT = "%Y%m%d%H%M%S"
 INMEMORY = True
 DBFILE =":memory:" if INMEMORY else 'asx.db'
+from tables import IsDescription,StringCol,Int64Col,UInt16Col,Float32Col,\
+        Float64Col,Int32Col,Time32Col
+from tables import openFile
+def get_num_lines():
+    total_linenum = 0
+    for histfile in glob.glob("history/**/*.TXT"):
+        with open(histfile) as f:
+            for l in f:
+                total_linenum+= 1
+    return total_linenum
 
-class StockDb(object):
+class Scrip(IsDescription):
+    symbol = StringCol(5)
+    date = Time32Col()
+    open = Float32Col()
+    close = Float32Col()
+    high = Float32Col()
+    low = Float32Col()
+    volume = Int32Col()
+
+class RpcObject(object):
+    def exec_tool(self,toolpath,*args, **kwargs):
+        toolmodule, toolset, toolname = toolpath.split('.')
+        tools = __import__(toolmodule)
+        tools = reload(tools)
+        cl = getattr(tools,toolset)(self)
+        #start = datetime.now()
+        result =  getattr(cl,toolname)(*args, **kwargs)
+        #print("Time taken for %s:%s" % (toolpath,(datetime.now()-start)))
+        del cl
+        del tools
+        return result
+    def get_status(self):
+        return "Running"
+    def shutdown(self):
+        self._shutdown = True
+        #return True
+        os._exit(0)
+
+class ScripTable(RpcObject):
+    def __init__(self):
+        self.h5file = openFile('stocktool.h5',mode='w',title='stocktool data file')
+        self.group = self.h5file.createGroup('/','historical','historical stock data')
+        self.historicaldata = self.h5file.createTable(self.group,'scrips',Scrip,'historical scrip')
+
+    def load(self):
+        start = datetime.now()
+        print("Calculating historical stock data size")
+        numlines = get_num_lines()
+        print("Number of etries: %s"%numlines)
+        ptotal = 0
+        for histfile in glob.glob("history/ASX/**/*.TXT"):
+            with open(histfile, 'r') as f:
+                reader = csv.reader(f)
+                trow = self.historicaldata.row
+                for row in reader:
+                    ptotal+=1
+                    trow['symbol'] = row[0]
+                    trow['date'] = int(row[1])
+                    trow['open'] = float(row[2])
+                    trow['close'] = float(row[3])
+                    trow['high'] = float(row[4])
+                    trow['low'] = float(row[5])
+                    trow['volume'] = int(row[6])
+                    trow.append()
+                    #if ptotal%1000 ==0:
+                    #    print '\r',
+                    #    print ptotal,
+        self.historicaldata.flush()
+        print "Completed in %s "% (datetime.now()-start)
+
+
+class StockDb(RpcObject):
     conn = None
     _shutdown=False
     def __init__(self):
@@ -27,13 +98,6 @@ class StockDb(object):
     def get_status(self):
         return "Running"
 
-    def get_num_lines(self):
-        total_linenum = 0
-        for histfile in glob.glob("history/**/*.TXT"):
-            with open(histfile) as f:
-                for l in f:
-                    total_linenum+= 1
-        return total_linenum
 
     def get_name_sector(self,symbol):
         cur = self.conn.cursor()
@@ -112,13 +176,13 @@ class StockDb(object):
     def build_stock_table(self):
         start = datetime.now()
         print("Calculating historical stock data size")
-        numlines = self.get_num_lines()
+        numlines = get_num_lines()
         print("Number of etries: %s"%numlines)
         cur = self.conn.cursor()
         cur.execute("""CREATE TABLE IF NOT EXISTS stocks (sym text, date integer, open real, close real,
                         high real, low real, volume real, UNIQUE(sym,date) ON CONFLICT REPLACE)""")
         ptotal = 0
-        for histfile in glob.glob("history/**/*.TXT"):
+        for histfile in glob.glob("history/ASX/**/*.TXT"):
             with open(histfile, 'r') as f:
                 reader = csv.reader(f)
                 for row in reader:
@@ -187,20 +251,6 @@ class StockDb(object):
         cur.close()
         return result
 
-    def last_value(self, symbol, col):
-        cur = self.conn.cursor()
-        cur.execute("""SELECT %s,max(date) FROM stocks WHERE sym='%s' """%(col,symbol))
-        result = cur.fetchall()
-        cur.close()
-        return result[0][0]
-
-    def shutdown(self):
-        self._shutdown = True
-        #return True
-        os._exit(0)
-
-
-
     def main(args):
         conn = sqlite3.connect(DBFILE)
         print check_lastupdate(update=True)
@@ -224,14 +274,6 @@ class StockDb(object):
         conn.close()
         return result
 
-    def exec_tool(self,toolmodule,toolset,toolname,*args, **kwargs):
-        tools = __import__(toolmodule)
-        tools = reload(tools)
-        cl = getattr(tools,toolset)(self)
-        result =  getattr(cl,toolname)(*args, **kwargs)
-        del cl
-        del tools
-        return result
 
 class Config(object):
     defaultconfig = None
@@ -280,6 +322,7 @@ if __name__ == "__main__":
 
     signal.signal(signal.SIGINT, signal_handler)
     server = ZMQRPCServer(StockDb)
+    #server = ZMQRPCServer(ScripTable)
     server.queue('tcp://0.0.0.0:5000',thread=True)
     print("Starting RPC server")
     server.work(workers=1)

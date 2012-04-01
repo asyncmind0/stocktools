@@ -24,6 +24,15 @@ if len(sys.argv)>1:
     method = getattr(rpc,sys.argv[1])
     result = method()
 
+def plot_sma(rpc,symbol,n=5, range=20 ):
+    data = rpc.exec_tool('tools.ClientTools.simple_moving_average',symbol, n)
+    sma,price, dates =zip(*data[:range])
+    #price = map(lambda x:x[1],data)
+    dates = map(lambda x: datetime.strptime(str(x),DATEFORMAT),dates)
+    ndates = pylab.date2num(dates)
+    for ydata in [sma,price]:
+        pylab.plot_date(ndates,ydata,'-')
+
 def plot_stock_graph(rpc, symbol, startdate=None, enddate=None):
     hist = rpc.date_range(symbol)
     avg = map(lambda x:x[0],hist)

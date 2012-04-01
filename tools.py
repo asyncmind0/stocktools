@@ -2,6 +2,20 @@ import logging
 import sys
 from datetime import datetime
 import numpy as np
+class AlphaTools(object):
+    def __init__(self, rpc):
+        self.rpc = rpc
+    def get_price(self,symbol, columns=['close']):
+        table = self.rpc.h5file.root.historical.scrips
+        columns.insert(0,'date')
+        #price = max([(x['close'],x['date']) for x in \
+                #        table.where("symbol == '%s'"%symbol)],key=lambda x:x[1])
+        price = max(map(lambda x: [x[key] for key in columns],
+            table.where("symbol == '%s'"%symbol)),key=lambda x:x[0])
+        #price  = max(table.where("symbol == '%s'"%symbol),key=lambda x:x['close'])
+        #return price['close']
+        return price
+
 class ClientTools(object):
     def __init__(self, rpc):
         self.rpc = rpc
@@ -11,6 +25,13 @@ class ClientTools(object):
         print 'arg2=%s' %arg2
         print 'kwarg1=%s' %kwarg1
         print 'kwarg2=%s' %kwarg2
+
+    def last_value(self, symbol, col):
+        cur = self.rpc.conn.cursor()
+        cur.execute("""SELECT %s,max(date) FROM stocks WHERE sym='%s' """%(col,symbol))
+        result = cur.fetchall()
+        cur.close()
+        return result[0][0]
 
     def week52(self, symbol, high_low='high'):
         """
@@ -172,10 +193,41 @@ class ClientTools(object):
         cur = self.rpc.conn.cursor()
         cur.execute("""SELECT * FROM fts WHERE name MATCH '%s'""" % term)
         result = cur.fetchall()
+        cur.close()
         return result
+
     def get_prices(self,stocks, column):
         stocks = stocks.split(',') if isinstance(stocks,(str,unicode)) else []
         prices = []
         for stock in stocks:
             prices.append((stock,self.rpc.last_value(stock,column)))
         return prices
+
+    def simple_moving_average(self, symbol, n=5):
+        cur = self.rpc.conn.cursor()
+        #maN = 'ma%s' % n
+        #prev_maN = None
+        #try:
+        #    cur.execute("""SELECT %s, max(date) FROM stocks WHERE sym ='%s'""" % (maN, symbol))
+        #    prev_maN = cur.fetchone()
+        #    prev_maN = prev_maN[0][0]
+        #except Exception as e:
+        #    prev_maN = None
+        #    pass
+        cur.execute("""SELECT close,date FROM stocks WHERE sym ='%s'""" % ( symbol))
+        result = cur.fetchall()
+        prices = map(lambda x:x[0], result)
+        #maN = 
+        #every day take the previous 5 days values and get average
+        sma = [0]*len(prices)
+        sma = [sum(prices[:n])/n]*len(prices)
+        for i, close in enumerate(prices,0):
+            if i<=5:continue
+            #sma[i]=sma[i-1]-((prices[i-n-1]/n)+(prices[i]/n))
+            sma[i] = sum(prices[i-n:i])/n
+        return zip(sma, prices, map(lambda x:x[1],result))
+
+
+
+        cur.close()
+
