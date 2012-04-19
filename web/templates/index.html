@@ -3,10 +3,6 @@
 {% block title %}Market Dog{% endblock %}
 
 {% block content %}
-<h1>Stock News for {{ symbol }}</h1>
-{% for document in documents %}
-<h2>{{document.symbol}} - {{document.title }} </h2>
-<p>{{document.content|safe}}</p>
-<br>
-{% endfor %}
+<a href="{{ url("symbols") }}" >Symbols</a>
+<a href="{{ url("sectors") }}" >Sectors</a>
 {% endblock %}

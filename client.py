@@ -1,3 +1,4 @@
+from debug import shell, debug as sj_debug
 from zmqrpc.client import ZMQRPC
 import sys
 import pprint
@@ -23,6 +24,7 @@ pprint.pprint(servers)
 if len(sys.argv)>1:
     method = getattr(rpc,sys.argv[1])
     result = method()
+shell()
 
 def plot_sma(rpc,symbol,n=5, range=20 ):
     data = rpc.exec_tool('tools.ClientTools.simple_moving_average',symbol, n)

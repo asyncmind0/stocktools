@@ -231,3 +231,9 @@ class ClientTools(object):
 
         cur.close()
 
+    def all_symbols_names_sectors(self):
+        cur = self.rpc.conn.cursor()
+        cur.execute("""SELECT sym,name,sector FROM analytics ORDER BY sym""")
+        result = cur.fetchall()
+        cur.close()
+        return result

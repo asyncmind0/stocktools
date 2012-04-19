@@ -4,7 +4,7 @@ import os.path
 DEBUG = True
 TEMPLATE_DEBUG = DEBUG
 #BASE_URL=""
-BASE_URL="marketdog/"
+URL_ROOT="/" if DEBUG else "marketdog/"
 
 ADMINS = (
     # ('Your Name', 'your_email@example.com'),
@@ -14,10 +14,10 @@ MANAGERS = ADMINS
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql_psycopg2', # Add 'postgresql_psycopg2', 'postgresql', 'mysql', 'sqlite3' or 'oracle'.
-        'NAME': 'stocktool',                      # Or path to database file if using sqlite3.
-        'USER': 'stocktool',                      # Not used with sqlite3.
-        'PASSWORD': 'stocktool',                  # Not used with sqlite3.
+        'ENGINE': 'django.db.backends.sqlite3', # Add 'postgresql_psycopg2', 'postgresql', 'mysql', 'sqlite3' or 'oracle'.
+        'NAME': 'stocktool.web.db',                      # Or path to database file if using sqlite3.
+        'USER': '',                      # Not used with sqlite3.
+        'PASSWORD': '',                  # Not used with sqlite3.
         'HOST': '',                      # Set to empty string for localhost. Not used with sqlite3.
         'PORT': '',                      # Set to empty string for default. Not used with sqlite3.
     }
@@ -75,6 +75,7 @@ STATICFILES_DIRS = (
     # Put strings here, like "/home/html/static" or "C:/www/django/static".
     # Always use forward slashes, even on Windows.
     # Don't forget to use absolute paths, not relative paths.
+    os.path.join(os.getcwd(),'static'),
 )
 
 # List of finder classes that know how to find static files in
@@ -132,19 +133,32 @@ INSTALLED_APPS = (
 # See http://docs.djangoproject.com/en/dev/topics/logging for
 # more details on how to customize your logging configuration.
 LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'handlers': {
-        'mail_admins': {
-            'level': 'ERROR',
-            'class': 'django.utils.log.AdminEmailHandler'
+        'version': 1,
+        'disable_existing_loggers': False,
+        'formatters': {
+            'verbose': {
+                'format': '%(levelname)s %(asctime)s %(module)s %(process)d %(thread)d %(message)s'
+                },
+            'simple': {
+                'format': '%(levelname)s %(message)s'
+                },
+            },
+        'handlers': {
+            'mail_admins': {
+                'level': 'ERROR',
+                'class': 'django.utils.log.AdminEmailHandler'
+                },
+            'console':{
+                'level':'DEBUG',
+                'class':'logging.StreamHandler',
+                'formatter': 'simple'
+                },
+            },
+        'loggers': {
+            'django.request': {
+                'handlers': ['mail_admins', 'console'],
+                'level': 'DEBUG',
+                'propagate': True,
+                },
+            }
         }
-    },
-    'loggers': {
-        'django.request': {
-            'handlers': ['mail_admins'],
-            'level': 'ERROR',
-            'propagate': True,
-        },
-    }
-}

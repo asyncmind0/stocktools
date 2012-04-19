@@ -228,7 +228,7 @@ class StockDb(RpcObject):
         cur.execute("""SELECT DISTINCT sym FROM stocks """)
         result = cur.fetchall()
         cur.close()
-        return result
+        return map(lambda x:x[0],result) if result else []
 
     def get_indices(self):
         cur = self.conn.cursor()

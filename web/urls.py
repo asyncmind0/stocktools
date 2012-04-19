@@ -15,7 +15,10 @@ urlpatterns = patterns('',
 
     # Uncomment the next line to enable the admin:
     # url(r'^admin/', include(admin.site.urls)),
-    url(r'^%s$' % settings.BASE_URL, 'web.views.index', name='index'),
-    url(r'^%supdatedb$' % settings.BASE_URL, 'web.documents.views.updatedb', name='updatedb'),
-    url(r'^%sstockinfo/(?P<symbol>\w+)/(?P<date>\d*)$' % settings.BASE_URL, 'web.documents.views.stockinfo', name='stockinfo'),
+    url(r'^$', 'web.views.index', name='index'),
+    url(r'^symbols$', 'web.views.get_symbols', name='get_symbols'),
+    url(r'^sectors$', 'web.views.get_sectors', name='get_sectors'),
+    url(r'^info/(?P<symbol>\w+)$', 'web.views.get_info', name='get_info'),
+    url(r'^updatedb$', 'web.documents.views.updatedb', name='updatedb'),
+    url(r'^stockinfo/(?P<symbol>\w+)/(?P<date>\d*)$', 'web.documents.views.stockinfo', name='stockinfo'),
 )
