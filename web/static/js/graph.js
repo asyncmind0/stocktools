@@ -6,7 +6,7 @@ function on_ready(){
                 spacingRight: 20
             },
             title: {
-                text: 'USD to EUR exchange rate from 2006 through 2008'
+                text: title
             },
             subtitle: {
                 text: document.ontouchstart === undefined ?
@@ -23,7 +23,7 @@ function on_ready(){
             yAxis: {
                 type:'float',
                 title: {
-                    text: 'Exchange rate'
+                    text: yAxisText
                 },
                 startOnTick: false,
                 showFirstLabel: false

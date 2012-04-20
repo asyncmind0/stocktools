@@ -80,7 +80,8 @@ class ClientTools(object):
             Read more:
                 http://www.investopedia.com/terms/1/52weekhighlow.asp#ixzz1qHFg9nQv
         """
-        symbols = map(lambda x:x[0], self.rpc.all_symbols())
+        symbols =  self.rpc.all_symbols()
+        print "SYMBOLS:%s"% len(symbols)
         indices = self.rpc.get_indices()
         w52highs = {}
         key = 'high'
@@ -90,7 +91,7 @@ class ClientTools(object):
             high52 = self.week52(sym,'high')
             if high52 <0:
                 continue
-            last_val = self.rpc.last_value(sym, 'high')
+            last_val = self.last_value(sym, 'high')
             w52highs[sym] = {key:last_val,
                  '52%s'%high_low:high52}
             change = last_val-high52 if high_low == 'low' else high52-last_val
@@ -235,5 +236,12 @@ class ClientTools(object):
         cur = self.rpc.conn.cursor()
         cur.execute("""SELECT sym,name,sector FROM analytics ORDER BY sym""")
         result = cur.fetchall()
+        cur.close()
+        return result
+    def get_info(self, symbol):
+        cur = self.rpc.conn.cursor()
+        cur.execute("""SELECT sym,name,sector FROM analytics 
+                WHERE sym = '%s' ORDER BY sym""" % symbol)
+        result = cur.fetchone()
         cur.close()
         return result

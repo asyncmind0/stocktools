@@ -6,6 +6,8 @@
     var enddate = new Date('{{ startdate.isoformat() }}');
     var symbol = '{{ symbol }}';
     var categories = [ '{{ symbol }}' ];
+    var title = '{{ "%s (%s)"% (info[1],info[0]) }}';
+    var yAxisText = 'high $';
     var series_data = [
     {% for price in prices %}
     [Date.UTC({{ "%s,%s,%s"%(price[1][:4],price[1][4:6],price[1][6:8])}}),{{ price[0] }} ],

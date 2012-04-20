@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% import "macros.html" as macros with context %}
+{% block content %}
+{% call(item) macros.list("Symbols",page.object_list, page ) %}
+<li><a href="info/{{ item[0] }}">{{ item[0] }}, {{item[1]}},{{ item[2] }}</a></li>
+{% endcall %}
+{% endblock %}
+

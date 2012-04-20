@@ -51,10 +51,9 @@ def current_datetime(request):
 def index(request):
     now = datetime.now()
     return render_to_response(request,'index.html', {'current_date': now, })
-def get_symbols(request):
-    now = datetime.now()
-    symbols = rpc.exec_tool('tools.ClientTools.all_symbols_names_sectors')
-    paginator = NamePaginator(symbols,on=0)
+def _paginate(request,items, on):
+    paginator = NamePaginator(items,on=on)
+    page = 1
     try:
         page = int(request.GET.get('page','1'))
     except ValueError:
@@ -63,16 +62,24 @@ def get_symbols(request):
         page = paginator.page(page)
     except (InvalidPage):
         page = paginator.page(paginator.num_pages)
-
+    return page
+def get_symbols(request):
+    now = datetime.now()
+    symbols = rpc.exec_tool('tools.ClientTools.all_symbols_names_sectors')
+    page = _paginate(request,symbols, 0)
     return render_to_response(request,'symbols.html', {'current_date': now, 'page':page})
 def get_sectors(request):
     now = datetime.now()
     sectors = rpc.exec_tool('tools.ClientTools.get_sectors')
     return render_to_response(request,'sectors.html', {'current_date': now, 'sectors':sectors})
 def get_info(request, symbol):
-    now = datetime.now()
+    info = rpc.exec_tool('tools.ClientTools.get_info',symbol)
     prices = rpc.date_range(symbol,columns=['close'])
     startdate = datetime.strptime(prices[0][1],'%Y%m%d')
     enddate = datetime.strptime(prices[-1][1],'%Y%m%d')
     return render_to_response(request,'info.html', {'startdate': startdate,
-        'enddate':enddate,'prices':prices, 'symbol':symbol})
+        'enddate':enddate,'prices':prices, 'symbol':symbol, 'info':info})
+def get_loosers52(request):
+    loosers = rpc.exec_tool('tools.ClientTools.week52diff','low')
+    page = _paginate(request,loosers,0)
+    return render_to_response(request,'stocklisting.html', dict(page=page))
