@@ -1,14 +1,22 @@
 #!/usr/bin/env python2
-from django.core.management import execute_manager
-import imp
-try:
-    imp.find_module('settings') # Assumed to be in the same directory.
-except ImportError:
-    import sys
-    sys.stderr.write("Error: Can't find the file 'settings.py' in the directory containing %r. It appears you've customized things.\nYou'll have to run django-admin.py, passing it your settings module.\n" % __file__)
-    sys.exit(1)
-
-import settings
+import os
+import sys
 
 if __name__ == "__main__":
-    execute_manager(settings)
+    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "settings")
+
+    from django.core.management import execute_from_command_line
+
+    if 'loadcsv' in sys.argv:
+        from cwbstatement import get_transactions
+        from expenses.models import Transaction
+        transactions = get_transactions()
+        for transaction in transactions:
+            tr = Transaction()
+            tr.label = transaction['label']
+            tr.credit = transaction['credit']
+            tr.debit = transaction['debit']
+            tr.date = transaction['date']
+            tr.save()
+    else:
+        execute_from_command_line(sys.argv)
