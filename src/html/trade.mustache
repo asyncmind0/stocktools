@@ -1,0 +1,7 @@
+<script>
+  require(["stocktools/TradeForm", ], function(TradeForm){
+      var trade = TradeForm({_xsrfToken: '{{xsrf_token}}'}, 'addtradeform')
+          .placeAt('portfoliopane');
+  });
+</script>
+<div id="portfoliopane"></div>

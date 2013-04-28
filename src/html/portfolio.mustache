@@ -1,0 +1,31 @@
+<style>
+  /*<![CDATA[*/
+  #gridDiv, #grid{
+  height:100%;}
+  #container {
+  font: 10px sans-serif;
+  margin: 0px auto 22px;
+  clear: both;
+  width: 960px;
+  }
+  /*]]>*/
+</style>
+<script>
+  var quotes = {{quotes}};
+  function onLoad(){
+    require(["stocktools/Portfolio", ], function(Portfolio){
+        Portfolio();
+        console.log("initialized portfolios");
+    });
+  }
+</script>
+<h3>{{response}}</h3>
+<button id="addTrade">Add Trade</button>
+<button id="removeTrade">Remove Trade</button>
+<div id="gridDiv">
+</div>
+
+<div id='container'>
+  <div id='legend'></div>
+  <div id='chart'></div>
+</div>

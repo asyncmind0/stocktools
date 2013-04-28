@@ -1,0 +1,14 @@
+<div class="error">
+  <h2>Error ({{status_code}})</h2>
+  <p>{{error}}</p>
+  <img src="/static/common/img/{{status_code}}.jpg"></img>
+</div>
+<div class="traceback">
+    {{#option_debug?}}
+    <h2 id="traceback">Traceback</h2>
+    <p class="traceback">{{&trace_info}}</p>
+    <p class='locals'>{{&locals_info}}</p>
+    <h2>Request Info</h2>
+    <p class="traceback">{{&request_info}}</p>
+    {{/option_debug?}}
+</div>
